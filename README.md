@@ -21,7 +21,7 @@ version: '3'
 services:
   backup:
     container_name: s3-backup
-    build: smartbrood/s3-backup
+    image: smartbrood/s3-backup
     command: "-d -t"
     environment:
       S3_BACKUP_BUCKET:      "your_s3_bucket_name"
