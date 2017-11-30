@@ -10,7 +10,6 @@ Backup to AWS S3.
 
 import argparse
 import boto3
-import functools
 import os
 import tarfile
 import time
