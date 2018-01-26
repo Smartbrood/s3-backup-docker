@@ -26,6 +26,10 @@ def make_tarfile(tar_filename, source):
                 tar.add(dir, arcname=os.path.basename(dir))
 
 
+def mariadb_dump(dumpfile, mariadb_host, mariadb_user, mariadb_password, datestamp):
+    print("Start mariadb dumping.")
+
+
 def copy_to_bucket(source, tar_filename, bucket, key, datestamp):
     make_tarfile(tar_filename, source)
     s3 = boto3.client('s3')
@@ -63,11 +67,17 @@ def main():
     tar_filename = "/tmp/backup.tar.gz"    
     bucket = os.environ.get('S3_BACKUP_BUCKET')
     source = os.environ.get('S3_BACKUP_SOURCE', "/backup").split(";")
-    time_of_day = os.environ.get('S3_BACKUP_TIME_OF_DAY', "01:00")
+    time_of_day_mariadb = os.environ.get('S3_BACKUP_TIME_OF_DAY', "02:00")
+    time_of_day = os.environ.get('S3_BACKUP_TIME_OF_DAY', "03:00")
     daily_key = os.environ.get('S3_BACKUP_DAILY_KEY')
     weekly_key = os.environ.get('S3_BACKUP_WEEKLY_KEY')
     monthly_key = os.environ.get('S3_BACKUP_MONTHLY_KEY')
-   
+
+    dumpfile         = os.environ.get('DUMPFILE')
+    mariadb_host     = os.environ.get('MARIADB_HOST')
+    mariadb_user     = os.environ.get('MARIADB_USER')
+    mariadb_password = os.environ.get('MARIADB_PASSWORD')
+ 
     if not daily_key:
         print("Please setup S3_BACKUP_DAILY_KEY environment variable.")
         sys.exit()
@@ -77,6 +87,7 @@ def main():
         sys.exit()
 
     if args.daemon:
+        schedule.every().day.at(time_of_day_mariad).do(mariadb_dump, dumpfile, mariadb_host, mariadb_user, mariadb_password, args.datestamp)
         schedule.every().day.at(time_of_day).do(copy_to_bucket, source, tar_filename, bucket, daily_key, args.datestamp)
         if weekly_key:
             schedule.every().sunday.at(time_of_day).do(copy_to_bucket, source, tar_filename, bucket, weekly_key, args.datestamp)
