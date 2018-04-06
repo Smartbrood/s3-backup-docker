@@ -1,0 +1,86 @@
+version: '3'
+services:
+    backup:
+#       image: smartbrood/s3-backup
+        build: .
+        command: "-d -t"
+        depends_on:
+            - postgres
+        environment:
+            S3_BACKUP_BUCKET: "private.smartbrood.net"
+            S3_BACKUP_SOURCE: "/backup"
+            S3_BACKUP_TIME_OF_DAY: "16:29"
+            S3_BACKUP_DAILY_KEY: "backup/daily/backup.tar.gz"
+            S3_BACKUP_WEEKLY_KEY: "backup/weekly/backup.tar.gz"
+            S3_BACKUP_MONTHLY_KEY: "backup/monthly/backup.tar.gz"
+            S3_BACKUP_DB_HOST: "postgres"
+            S3_BACKUP_DB_PORT: "5432"
+            S3_BACKUP_DB_USER: "netbox"
+            S3_BACKUP_DB_PASSWORD: "netbox"
+            S3_BACKUP_DB_TYPE: "postgresql"
+            S3_BACKUP_DUMPFILE: "/backup/pg_dump.sql"
+        volumes:
+            - /home/petrov/.aws/credentials:/root/.aws/credentials:ro
+            - /home/petrov/smb/mib:/backup
+
+    netbox:
+        image: smartbrood/netbox
+        depends_on:
+            - postgres
+        environment:
+            ALLOWED_HOSTS: "localhost"
+            DB_NAME: netbox
+            DB_USER: netbox
+            DB_PASSWORD: netbox
+            DB_HOST: postgres
+            EMAIL_SERVER: localhost
+            EMAIL_PORT: 25
+            EMAIL_USERNAME: netbox
+            EMAIL_PASSWORD: netbox
+            EMAIL_TIMEOUT: 5
+            EMAIL_FROM: netbox@bar.com
+            NAPALM_USERNAME: netbox
+            NAPALM_PASSWORD: netbox
+            NAPALM_TIMEOUT: 10
+            MAX_PAGE_SIZE: 0
+            SECRET_KEY: 8uqek76kyWWLEi7GZKPgCXKW559iVnC6
+            SUPERUSER_NAME: admin
+            SUPERUSER_EMAIL: admin@example.com
+            SUPERUSER_PASSWORD: admin
+            SUPERUSER_API_TOKEN: OmwhDFrKcmet5re59AI0OF0JatStwa13
+        volumes:
+            - netbox-static-files:/opt/netbox/netbox/static
+            - netbox-media-files:/opt/netbox/netbox/media
+            - netbox-report-files:/opt/netbox/netbox/reports
+    nginx:
+        image: smartbrood/nginx:netbox
+        depends_on:
+            - netbox
+        environment:
+            FQDN: localhost
+        ports:
+            - 443:443
+        volumes:
+            - nginx-ssl-files:/etc/nginx/ssl
+            - netbox-static-files:/opt/netbox/netbox/static:ro
+    postgres:
+        image: postgres:10.2-alpine
+        environment:
+            POSTGRES_USER: netbox
+            POSTGRES_PASSWORD: netbox
+            POSTGRES_DB: netbox
+        volumes:
+            - netbox-postgres-data:/var/lib/postgresql/data
+
+volumes:
+    nginx-ssl-files:
+        driver: local
+    netbox-static-files:
+        driver: local
+    netbox-media-files:
+        driver: local
+    netbox-report-files:
+        driver: local
+    netbox-postgres-data:
+        driver: local
+

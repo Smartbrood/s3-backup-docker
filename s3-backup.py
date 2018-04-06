@@ -26,20 +26,26 @@ def make_tarfile(tar_filename, source):
                 tar.add(dir, arcname=os.path.basename(dir))
 
 
-def mariadb_dump(dumpfile, mariadb_host, mariadb_user, mariadb_password, datestamp):
+def mariadb_dump(args, key):
     print("Start mariadb dumping.")
+    copy_to_bucket(args, key)
 
 
-def copy_to_bucket(source, tar_filename, bucket, key, datestamp):
-    make_tarfile(tar_filename, source)
+def postgresql_dump(args, key):
+    print("Start postgresql dumping.")
+    copy_to_bucket(args, key)
+
+
+def copy_to_bucket(args, key):
+    make_tarfile(args.tar_filename, args.source)
     s3 = boto3.client('s3')
-    if datestamp:
+    if args.datestamp:
         l = key.split(".")
         l.insert(1, time.strftime("%d-%m-%Y", time.gmtime()))
         key = ".".join(l)
-    print("Start upload to bucket: %s. Key: %s" % (bucket, key))
-    s3.upload_file(tar_filename, bucket, key)
-    os.remove(tar_filename)
+    print("Start upload to bucket: %s. Key: %s" % (args.bucket, key))
+    s3.upload_file(args.tar_filename, args.bucket, key)
+    os.remove(args.tar_filename)
     print("Finished.")
 
 
@@ -64,42 +70,48 @@ def main():
     else:
         pass
 
-    tar_filename = "/tmp/backup.tar.gz"    
-    bucket = os.environ.get('S3_BACKUP_BUCKET')
-    source = os.environ.get('S3_BACKUP_SOURCE', "/backup").split(";")
-    time_of_day_mariadb = os.environ.get('S3_BACKUP_TIME_OF_DAY', "02:00")
-    time_of_day = os.environ.get('S3_BACKUP_TIME_OF_DAY', "03:00")
-    daily_key = os.environ.get('S3_BACKUP_DAILY_KEY')
-    weekly_key = os.environ.get('S3_BACKUP_WEEKLY_KEY')
-    monthly_key = os.environ.get('S3_BACKUP_MONTHLY_KEY')
+    args.tar_filename = "/tmp/backup.tar.gz"    
+    args.bucket = os.environ.get('S3_BACKUP_BUCKET')
+    args.source = os.environ.get('S3_BACKUP_SOURCE', "/backup").split(";")
 
-    dumpfile         = os.environ.get('DUMPFILE')
-    mariadb_host     = os.environ.get('MARIADB_HOST')
-    mariadb_user     = os.environ.get('MARIADB_USER')
-    mariadb_password = os.environ.get('MARIADB_PASSWORD')
+    args.dumpfile    = os.environ.get('S3_BACKUP_DUMPFILE')
+    args.db_host     = os.environ.get('S3_BACKUP_DB_HOST')
+    args.db_port     = os.environ.get('S3_BACKUP_DB_PORT')
+    args.db_user     = os.environ.get('S3_BACKUP_DB_USER')
+    args.db_password = os.environ.get('S3_BACKUP_DB_PASSWORD')
+
+    db_type     = os.environ.get('S3_BACKUP_DB_TYPE')
+    time_of_day = os.environ.get('S3_BACKUP_TIME_OF_DAY', "03:00")
+    daily_key   = os.environ.get('S3_BACKUP_DAILY_KEY')
+    weekly_key  = os.environ.get('S3_BACKUP_WEEKLY_KEY')
+    monthly_key = os.environ.get('S3_BACKUP_MONTHLY_KEY')
  
     if not daily_key:
         print("Please setup S3_BACKUP_DAILY_KEY environment variable.")
         sys.exit()
         
-    if not bucket:
+    if not args.bucket:
         print("Please setup S3_BACKUP_BUCKET environment variable.")
         sys.exit()
 
+    if db_type == "postgresql":
+        sfunc = postgresql_dump
+    elif db_type == "mariadb":
+        sfunc = mariadb_dump
+    else:
+        sfunc = copy_to_bucket
+
     if args.daemon:
-        schedule.every().day.at(time_of_day_mariad).do(mariadb_dump, dumpfile, mariadb_host, mariadb_user, mariadb_password, args.datestamp)
-        schedule.every().day.at(time_of_day).do(copy_to_bucket, source, tar_filename, bucket, daily_key, args.datestamp)
+        schedule.every().day.at(time_of_day).do(sfunc, args, daily_key)
         if weekly_key:
-            schedule.every().sunday.at(time_of_day).do(copy_to_bucket, source, tar_filename, bucket, weekly_key, args.datestamp)
-        #if monthly_key:
-        #    schedule.every(5).sundays.at(time_of_day).do(copy_to_bucket, source, tar_filename, bucket, monthly_key, args.datestamp)
+            schedule.every().sunday.at(time_of_day).do(sfunc, args, weekly_key)
        
         while True:
             schedule.run_pending()
             time.sleep(1)
 
     else:
-        copy_to_bucket(source, tar_filename, bucket, daily_key, args.datestamp)
+        sfunc(args, daily_key)
 
 
 if __name__ == "__main__":
