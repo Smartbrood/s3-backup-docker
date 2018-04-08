@@ -9,7 +9,7 @@ services:
         environment:
             S3_BACKUP_BUCKET: "private.smartbrood.net"
             S3_BACKUP_SOURCE: "/backup"
-            S3_BACKUP_TIME_OF_DAY: "16:29"
+            S3_BACKUP_TIME_OF_DAY: "14:36"
             S3_BACKUP_DAILY_KEY: "backup/daily/backup.tar.gz"
             S3_BACKUP_WEEKLY_KEY: "backup/weekly/backup.tar.gz"
             S3_BACKUP_MONTHLY_KEY: "backup/monthly/backup.tar.gz"

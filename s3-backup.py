@@ -16,6 +16,9 @@ import time
 import sys
 
 import schedule
+import subprocess
+import stat
+import shutil
 
 
 def make_tarfile(tar_filename, source):
@@ -28,11 +31,33 @@ def make_tarfile(tar_filename, source):
 
 def mariadb_dump(args, key):
     print("Start mariadb dumping.")
+    with open("/root/.my.cnf", "w") as f:
+        f.write("[mysqldump]\nuser=%s\npassword=%s" % (args.db_user, args.db_password))
+        os.chmod("/root/.my.cnf", stat.S_IRUSR)
+
+    ps = subprocess.Popen(
+        'mysqldump -u %s -A -h %s -P %s > %s' % (args.db_user, args.db_host, args.db_port, args.dumpfile),
+        shell=True
+    )
+    output = ps.communicate()[0]
+    for line in output.splitlines():
+        print line
     copy_to_bucket(args, key)
 
 
 def postgresql_dump(args, key):
     print("Start postgresql dumping.")
+    with open("/root/.pgpass", "w") as f:
+        f.write("*:%s:*:%s:%s" % (args.db_port, args.db_user, args.db_password))
+        os.chmod("/root/.pgpass", stat.S_IRUSR)
+
+    ps = subprocess.Popen(
+        ['pg_dump', '-U', args.db_user, '-Fc', '-h', args.db_host, '-p', args.db_port, '-f', args.dumpfile],
+        stdout=subprocess.PIPE
+    )
+    output = ps.communicate()[0]
+    for line in output.splitlines():
+        print line
     copy_to_bucket(args, key)
 
 
@@ -45,6 +70,7 @@ def copy_to_bucket(args, key):
         key = ".".join(l)
     print("Start upload to bucket: %s. Key: %s" % (args.bucket, key))
     s3.upload_file(args.tar_filename, args.bucket, key)
+    shutil.rmtree(args.source)
     os.remove(args.tar_filename)
     print("Finished.")
 

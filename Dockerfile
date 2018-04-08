@@ -10,7 +10,7 @@ ENV PACKAGES="\
   python2 \
   py-setuptools \
   postgresql-client \
-"
+  mariadb-client"
 
 RUN echo \
   && apk add --no-cache $PACKAGES \
