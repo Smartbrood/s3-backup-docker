@@ -24,9 +24,20 @@ import shutil
 def make_tarfile(tar_filename, source):
     with tarfile.open(tar_filename, "w:gz") as tar:
         print("Start tar creation, source: %s." % source)
-        for dir in source:
-            if os.path.isdir(dir):
-                tar.add(dir, arcname=os.path.basename(dir))
+        for dirpath in source:
+            if os.path.isdir(dirpath):
+                tar.add(dirpath, arcname=os.path.basename(dirpath))
+
+
+def cleanup(source, tar_filename):
+    os.remove(tar_filename)
+    for dirpath in source:
+        for item in os.listdir(dirpath):
+            path = os.path.join(dirpath, item)
+            if os.path.isfile(path):
+                os.unlink(path)
+            elif os.path.isdir(path):
+                shutil.rmtree(item)
 
 
 def mariadb_dump(args, key):
