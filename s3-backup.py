@@ -81,9 +81,7 @@ def copy_to_bucket(args, key):
         key = ".".join(l)
     print("Start upload to bucket: %s. Key: %s" % (args.bucket, key))
     s3.upload_file(args.tar_filename, args.bucket, key)
-    for i in args.source:
-        shutil.rmtree(i)
-    os.remove(args.tar_filename)
+    cleanup(args.source, args.tar_filename)
     print("Finished.")
 
 
