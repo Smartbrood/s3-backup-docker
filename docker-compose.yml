@@ -1,8 +1,7 @@
 version: '3'
 services:
     backup:
-#       image: smartbrood/s3-backup
-        build: .
+        image: smartbrood/s3-backup
         command: "-d -t"
         depends_on:
             - postgres
